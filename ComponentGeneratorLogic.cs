@@ -134,79 +134,84 @@ internal class ComponentGeneratorLogic
                 memberSymbols.First() is not IPropertySymbol propSymbol ||
                 propSymbol.SetMethod == null) continue;
 
-            switch (propSymbol.Type.SpecialType)
+            if (ParseHelper.TryParseProperty(propSymbol, value, out var rValue))
             {
-                // 字符串类型
-                case SpecialType.System_String:
-                {
-                    code.AppendLine($"{indent}{target}.{propertyName} = \"{EscapeString(value)}\";");
-                    break;
-                }
-                // 布尔类型
-                case SpecialType.System_Boolean:
-                {
-                    code.AppendLine($"{indent}{target}.{propertyName} = {value.ToLowerInvariant()};");
-                    break;
-                }
-                #region 数字类型
-                case SpecialType.System_Int16:
-                {
-                    if (short.TryParse(value, out var result))
-                        code.AppendLine($"{indent}{target}.{propertyName} = {result};");
-                    break;
-                }
-                case SpecialType.System_Int32:
-                {
-                    if (int.TryParse(value, out var result))
-                        code.AppendLine($"{indent}{target}.{propertyName} = {result};");
-                    break;
-                }
-                case SpecialType.System_Double:
-                {
-                    if (double.TryParse(value, out var result))
-                        code.AppendLine($"{indent}{target}.{propertyName} = {result}D;");
-                    break;
-                }
-                case SpecialType.System_Single:
-                {
-                    if (float.TryParse(value, out var result))
-                        code.AppendLine($"{indent}{target}.{propertyName} = {result}F;");
-                    break;
-                }
-                #endregion
-                case SpecialType.None:
-                {
-                    // 特殊类型为 None 时，可能是 enum 或自定义类型
-                    if (propSymbol.Type.TypeKind == TypeKind.Enum)
-                    {
-                        // 枚举类型
-                        var fullTypeName = propSymbol.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-                        var enumMemberNames = propSymbol.Type.GetMembers()
-                            .OfType<IFieldSymbol>().Select(f => f.Name).ToArray();
-
-                        if (!enumMemberNames.Contains(value)) break;
-
-                        code.AppendLine($"{indent}{target}.{propertyName} = {fullTypeName}.{EscapeString(value)};");
-                    }
-                    else if (propSymbol.Type is INamedTypeSymbol propTypeSymbol)
-                    {
-                        // 判断是否实现 System.IParsable<T>
-
-                        if (propTypeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::Microsoft.Xna.Framework.Color")
-                        {
-                            code.AppendLine($"{indent}{target}.{propertyName} = {ParseHelper.ParseColor(propTypeSymbol, value)};");
-                        }
-                        else if (propTypeSymbol.AllInterfaces.Any(i =>
-                            i.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::System.IParsable<TSelf>" &&
-                            SymbolEqualityComparer.Default.Equals(i.TypeArguments[0], propTypeSymbol)))
-                        {
-                            var fullTypeName = propTypeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-                            code.AppendLine($"{indent}{target}.{propertyName} = {fullTypeName}.Parse(\"{EscapeString(value)}\", null);");
-                        }
-                    }
-                    break;
-                }
+                code.AppendLine($"{indent}{target}.{propertyName} = {rValue};");
             }
+
+            //switch (propSymbol.Type.SpecialType)
+            //{
+            //    // 字符串类型
+            //    case SpecialType.System_String:
+            //    {
+            //        code.AppendLine($"{indent}{target}.{propertyName} = \"{ParseHelper.EscapeString(value)}\";");
+            //        break;
+            //    }
+            //    // 布尔类型
+            //    case SpecialType.System_Boolean:
+            //    {
+            //        code.AppendLine($"{indent}{target}.{propertyName} = {value.ToLowerInvariant()};");
+            //        break;
+            //    }
+            //    #region 数字类型
+            //    case SpecialType.System_Int16:
+            //    {
+            //        if (short.TryParse(value, out var result))
+            //            code.AppendLine($"{indent}{target}.{propertyName} = {result};");
+            //        break;
+            //    }
+            //    case SpecialType.System_Int32:
+            //    {
+            //        if (int.TryParse(value, out var result))
+            //            code.AppendLine($"{indent}{target}.{propertyName} = {result};");
+            //        break;
+            //    }
+            //    case SpecialType.System_Double:
+            //    {
+            //        if (double.TryParse(value, out var result))
+            //            code.AppendLine($"{indent}{target}.{propertyName} = {result}D;");
+            //        break;
+            //    }
+            //    case SpecialType.System_Single:
+            //    {
+            //        if (float.TryParse(value, out var result))
+            //            code.AppendLine($"{indent}{target}.{propertyName} = {result}F;");
+            //        break;
+            //    }
+            //    #endregion
+            //    case SpecialType.None:
+            //    {
+            //        // 特殊类型为 None 时，可能是 enum 或自定义类型
+            //        if (propSymbol.Type.TypeKind == TypeKind.Enum)
+            //        {
+            //            // 枚举类型
+            //            var fullTypeName = propSymbol.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            //            var enumMemberNames = propSymbol.Type.GetMembers()
+            //                .OfType<IFieldSymbol>().Select(f => f.Name).ToArray();
+
+            //            if (!enumMemberNames.Contains(value)) break;
+
+            //            code.AppendLine($"{indent}{target}.{propertyName} = {fullTypeName}.{ParseHelper.EscapeString(value)};");
+            //        }
+            //        else if (propSymbol.Type is INamedTypeSymbol propTypeSymbol)
+            //        {
+            //            // 判断是否实现 System.IParsable<T>
+
+            //            if (propTypeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::Microsoft.Xna.Framework.Color")
+            //            {
+            //                //code.AppendLine($"{indent}{target}.{propertyName} = {ParseHelper.ParseColor(propTypeSymbol, value)};");
+            //            }
+            //            else if (propTypeSymbol.AllInterfaces.Any(i =>
+            //                i.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::System.IParsable<TSelf>" &&
+            //                SymbolEqualityComparer.Default.Equals(i.TypeArguments[0], propTypeSymbol)))
+            //            {
+            //                var fullTypeName = propTypeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            //                code.AppendLine($"{indent}{target}.{propertyName} = {fullTypeName}.Parse(\"{ParseHelper.EscapeString(value)}\", null);");
+            //            }
+            //        }
+            //        break;
+            //    }
+            //}
         }
 
         return code.ToString();
@@ -254,6 +259,4 @@ internal class ComponentGeneratorLogic
         if (string.IsNullOrWhiteSpace(input)) return false;
         return input.All(c => char.IsLetterOrDigit(c) || c.Equals('_'));
     }
-
-    private static string EscapeString(string input) => input?.Replace("\"", "\\\"").Replace("\\", "\\\\") ?? string.Empty;
 }

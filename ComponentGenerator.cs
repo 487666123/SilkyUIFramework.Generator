@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
+﻿using System.Collections.Immutable;
 using System.Xml.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -21,17 +18,48 @@ internal partial class ComponentGenerator : IIncrementalGenerator
         isEnabledByDefault: true,
         description: "标记不同类型的 XML 元素名不能重复.");
 
+    public static string AttributeName => "SilkyUIFramework.Attributes.XmlElementMappingAttribute";
+
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        //context.CompilationProvider.Select(c =>
-        //{
-        //    return c.ReferencedAssemblyNames
-        //});
+        var allSymbol = context.CompilationProvider.Select((c, _) =>
+        {
+            var result = ImmutableArray.CreateBuilder<(string Alias, INamedTypeSymbol TypeSymbol)>();
+
+            var targetAttributeSymbol = c.GetTypeByMetadataName(AttributeName);
+            if (targetAttributeSymbol == null) return [];
+
+            void VisitSymbol(INamespaceSymbol ns, ImmutableArray<(string, INamedTypeSymbol)>.Builder result)
+            {
+                foreach (var member in ns.GetMembers())
+                {
+                    if (member is INamespaceSymbol childNS)
+                    {
+                        VisitSymbol(childNS, result);
+                    }
+                    else if (member is INamedTypeSymbol typeSymbol)
+                    {
+                        foreach (var attr in typeSymbol.GetAttributes())
+                        {
+                            if (SymbolEqualityComparer.Default.Equals(attr.AttributeClass, targetAttributeSymbol))
+                            {
+                                var alias = attr.ConstructorArguments[0].Value as string;
+                                result.Add((alias, typeSymbol));
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+
+            VisitSymbol(c.GlobalNamespace, result);
+            return result.ToImmutable();
+        });
 
 
         // 监听 XmlElementMappingAttribute 特性
         var xmlMappedTypes = context.SyntaxProvider.ForAttributeWithMetadataName(
-                "SilkyUIFramework.Attributes.XmlElementMappingAttribute",
+                AttributeName,
                 predicate: static (syntaxNode, _) => syntaxNode is ClassDeclarationSyntax,
                 transform: static (context, cancellationToken) =>
                 {
@@ -70,7 +98,7 @@ internal partial class ComponentGenerator : IIncrementalGenerator
 
         // 找到 XML 绑定的 Class 的 TypeSymbol
         var provider = xmlDocuments
-            .Combine(classSyntaxProvider).Combine(xmlMappedTypes)
+            .Combine(classSyntaxProvider).Combine(allSymbol)
             .Select((pair, _) =>
             {
                 var ((document, symbols), mapping) = pair;
@@ -91,15 +119,15 @@ internal partial class ComponentGenerator : IIncrementalGenerator
             // 如果有重复的不会生成代码
             if (duplicates.Length > 0)
             {
-                foreach (var group in duplicates)
-                {
-                    foreach (var item in group)
-                    {
-                        // 报告重复别名错误
-                        var diagnostic = Diagnostic.Create(DuplicateElementNameRule, item.Location, item.Alias);
-                        spc.ReportDiagnostic(diagnostic);
-                    }
-                }
+                //foreach (var group in duplicates)
+                //{
+                //    foreach (var item in group)
+                //    {
+                //        // 报告重复别名错误
+                //        var diagnostic = Diagnostic.Create(DuplicateElementNameRule, item.Location, item.Alias);
+                //        spc.ReportDiagnostic(diagnostic);
+                //    }
+                //}
 
                 return;
             }
