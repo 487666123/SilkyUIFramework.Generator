@@ -142,7 +142,7 @@ internal partial class ComponentGenerator : IIncrementalGenerator
                 var fullName = root.Attribute("Class").Value;
 
                 ComponentGeneratorLogic.AliasToTypeSymbolMapping = eMappingTable;
-                var code = ComponentGeneratorLogic.GenerateCode(root, typeSymbol);
+                var code = ComponentGeneratorLogic.GenCode(root, typeSymbol);
 
                 spc.AddSource($"{string.Join(".", fullName)}.g.cs", SourceText.From(code, System.Text.Encoding.UTF8));
             }

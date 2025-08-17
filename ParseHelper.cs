@@ -3,7 +3,7 @@ using Microsoft.CodeAnalysis;
 
 namespace SilkyUIAnalyzer;
 
-public static class ParseHelper
+internal static class ParseHelper
 {
     public static string EscapeString(string input) => input?.Replace("\"", "\\\"").Replace("\\", "\\\\") ?? string.Empty;
 
@@ -59,7 +59,7 @@ public static class ParseHelper
             {
                 if (double.TryParse(value, out var result))
                 {
-                    rValue = result.ToString();
+                    rValue = $"{result}D";
                     return true;
                 }
                 break;
@@ -68,7 +68,7 @@ public static class ParseHelper
             {
                 if (float.TryParse(value, out var result))
                 {
-                    rValue = result.ToString();
+                    rValue = $"{result}F";
                     return true;
                 }
                 break;
@@ -236,5 +236,12 @@ public static class ParseHelper
         }
 
         return false;
+    }
+
+    /// <summary> 转换为有效字段名，保留数字字母和下划线 </summary>
+    public static bool IsValidMemberName(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return false;
+        return input.All(c => char.IsLetterOrDigit(c) || c.Equals('_'));
     }
 }

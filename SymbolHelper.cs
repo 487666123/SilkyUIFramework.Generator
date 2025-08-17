@@ -2,14 +2,11 @@
 
 namespace SilkyUIAnalyzer;
 
-public static class SymbolHelper
+internal static class SymbolHelper
 {
     /// <summary>
-    /// 获取指定类型的所有成员，包括继承的成员，但是如若在本类型重写，继承的将不会获取。
+    /// 获取 指定类型符号 的 所有成员（包括继承的成员，唯一：子类重写优先）
     /// </summary>
-    /// <param name="typeSymbol"></param>
-    /// <param name="name"></param>
-    /// <returns></returns>
     public static List<ISymbol> GetOnlyMembers(this INamedTypeSymbol typeSymbol, string name)
     {
         var members = new List<ISymbol>();
